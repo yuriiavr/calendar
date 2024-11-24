@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Календар-Записник</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Календар-Записник</h1>
+      <div class="month-navigation">
+        <button id="prevMonth">← Попередній місяць</button>
+        <span id="currentMonth"></span>
+        <button id="nextMonth">Наступний місяць →</button>
+      </div>
+      <div>
+        <label for="timezoneSelector">Виберіть часовий пояс:</label>
+        <select id="timezoneSelector"></select>
+    </div>
+    </header>
+
+    <!-- Місячний календар -->
+    <main id="monthView">
+      <table id="monthCalendar">
+        <thead>
+          <tr>
+            <th>Пн</th>
+            <th>Вт</th>
+            <th>Ср</th>
+            <th>Чт</th>
+            <th>Пт</th>
+            <th>Сб</th>
+            <th>Нд</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Дні місяця будуть динамічно додані -->
+        </tbody>
+      </table>
+    </main>
+
+    <!-- Розклад дня -->
+    <main id="dayView" style="display: none">
+      <div class="controls">
+        <button id="backToMonth">← Назад до місяця</button>
+        <h2 id="selectedDate"></h2>
+        <div>
+            <label for="dayModeToggle">Денний режим</label>
+            <input type="checkbox" id="dayModeToggle">
+        </div>
+      </div>
+      <table id="daySchedule">
+        <thead>
+          <tr>
+            <th class="time-label">Час</th>
+            <th>Події</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Часові інтервали будуть динамічно додані -->
+        </tbody>
+      </table>
+    </main>
+
+    <!-- Модальне вікно для введення події -->
+    <div
+      id="eventModal"
+      style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: white;
+        padding: 20px;
+        border: 1px solid #ccc;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        z-index: 1000;
+      "
+    >
+      <h3>Додати подію</h3>
+      <label for="eventDescription">Опис події:</label>
+      <input
+        type="text"
+        id="eventDescription"
+        style="width: 100%; margin-bottom: 10px"
+      />
+      <label for="eventType">Тип події:</label>
+      <select id="eventType" style="width: 100%; margin-bottom: 10px">
+        <option value="plans">План</option>
+        <option value="holidays">Свято</option>
+      </select>
+      <button id="saveEvent">Зберегти</button>
+      <button id="cancelEvent">Скасувати</button>
+    </div>
+
+    <div id="contextMenu" style="display: none;">
+        <button id="editEvent">Редагувати</button>
+        <button id="deleteEvent">Видалити</button>
+    </div>
+    
+
+    <script src="renderer.js" defer></script>
+  </body>
+</html>
