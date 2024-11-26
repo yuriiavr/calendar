@@ -24,6 +24,9 @@ let isDayModeEnabled = JSON.parse(localStorage.getItem('dayMode')) || false; // 
 const contextMenu = document.getElementById('contextMenu'); // Контекстне меню
 let selectedEventCell = null; // Поточна обрана клітинка події
 let userTimezone = localStorage.getItem('userTimezone') || Intl.DateTimeFormat().resolvedOptions().timeZone;
+const eventTitleInput = document.getElementById('eventTitle'); // Поле для введення назви події
+let draggedEvent = null;
+
 
 // === МІСЯЧНИЙ КАЛЕНДАР ===
 
@@ -96,7 +99,7 @@ function createMonthCell(day) {
     }
 
     // Перехід до детального розкладу дня
-    cell.addEventListener('click', () => showDayView(isoDate));
+    cell.addEventListener('click', () => showWeekView(isoDate));
     return cell;
 }
 
@@ -117,15 +120,90 @@ function nextMonth() {
 
 // === ДЕТАЛЬНИЙ РОЗКЛАД ДНЯ ===
 
-// Показ розкладу дня
-function showDayView(date) {
+// Показ розкладу для тижня
+function showWeekView(date) {
     selectedDate = date;
+
+    const startDate = new Date(date);
+    const endDate = new Date(startDate);
+    endDate.setDate(startDate.getDate() + 6); // Кінець тижня через 6 днів після обраної дати
+
     monthView.style.display = 'none';
     dayView.style.display = 'block';
-    document.getElementById('selectedDate').textContent = new Date(date).toLocaleDateString('uk-UA', { day: 'numeric', month: 'long', year: 'numeric' });
-    createDaySchedule(date);
-    scrollToCurrentTime();
+
+    document.getElementById('selectedDate').textContent = `Тиждень: ${startDate.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })} - ${endDate.toLocaleDateString('uk-UA', { day: 'numeric', month: 'long' })}`;
+    createWeekSchedule(startDate);
 }
+
+
+function createWeekSchedule(startDate) {
+    daySchedule.innerHTML = '';
+
+    // Оновлення заголовка таблиці
+    const thead = document.querySelector('#daySchedule thead tr');
+    thead.innerHTML = '<th class="time-label">Час</th>'; // Очищуємо і додаємо колонку для часу
+
+    const weekDates = [];
+    for (let dayOffset = 0; dayOffset < 7; dayOffset++) {
+        const currentDate = new Date(startDate);
+        currentDate.setDate(startDate.getDate() + dayOffset);
+
+        weekDates.push(currentDate);
+
+        const th = document.createElement('th');
+        th.textContent = currentDate.toLocaleDateString('uk-UA', { weekday: 'short', day: 'numeric', month: 'short' });
+        th.dataset.date = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+
+        if (currentDate.toDateString() === new Date().toDateString()) {
+            th.classList.add('today');
+        }
+
+        thead.appendChild(th);
+    }
+
+    // Створення рядків для часу
+    for (let hour = 0; hour < 24; hour++) {
+        for (let minutes = 0; minutes < 60; minutes += 30) {
+            const row = document.createElement('tr');
+
+            const timeCell = document.createElement('td');
+            timeCell.textContent = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+            timeCell.classList.add('time-label');
+            row.appendChild(timeCell);
+
+            weekDates.forEach(currentDate => {
+                const eventCell = document.createElement('td');
+                const isoDate = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}-${String(currentDate.getDate()).padStart(2, '0')}`;
+                eventCell.dataset.date = isoDate;
+                eventCell.dataset.time = `${String(hour).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+                eventCell.setAttribute('draggable', 'true'); // Дозволяємо перетягування
+                eventCell.addEventListener('dragstart', (e) => handleDragStart(e, eventCell));
+                eventCell.addEventListener('dragover', handleDragOver);
+                eventCell.addEventListener('drop', (e) => handleDrop(e, eventCell));
+                eventCell.addEventListener('dblclick', () => addEventByClick(eventCell));
+
+                // Відображення подій
+                if (events.plans[isoDate] && events.plans[isoDate][eventCell.dataset.time]) {
+                    events.plans[isoDate][eventCell.dataset.time].forEach(event => {
+                        const span = document.createElement('span');
+                        span.textContent = event.title;
+                        span.style.fontWeight = 'bold';
+
+                        eventCell.appendChild(span);
+                    });
+                }
+
+                row.appendChild(eventCell);
+            });
+
+            daySchedule.appendChild(row);
+        }
+    }
+
+    applyDayMode(isDayModeEnabled);
+    highlightCurrentTime();
+}
+
 
 // Повернення до місячного календаря
 backToMonthButton.addEventListener('click', () => {
@@ -178,45 +256,50 @@ function createDaySchedule(date) {
 
 // === МОДАЛЬНЕ ВІКНО ДЛЯ ПОДІЙ ===
 
-// Відкриття модального вікна
-function openEventModal(cell, isEdit = false) {
+// Відкриття модального вікна для додавання/редагування події
+function openEventModal(cell, existingEvent = null) {
     modal.style.display = 'block';
 
     const { date, time } = cell.dataset;
 
-    if (isEdit) {
-        const existingEvent = events.plans[date]?.[time]?.[0] || '';
-        eventDescriptionInput.value = existingEvent; // Заповнюємо поле опису існуючою подією
-        eventTypeSelect.value = 'plans';
+    if (existingEvent) {
+        // Якщо подія вже існує, заповнюємо поля модального вікна
+        eventTitleInput.value = existingEvent.title || '';
+        eventDescriptionInput.value = existingEvent.description || '';
     } else {
-        eventDescriptionInput.value = ''; // Очищуємо поле для нової події
-        eventTypeSelect.value = 'plans';
+        // Для нової події очищуємо поля
+        eventTitleInput.value = '';
+        eventDescriptionInput.value = '';
     }
 
     saveEventButton.onclick = () => {
+        const title = eventTitleInput.value.trim();
         const description = eventDescriptionInput.value.trim();
-        const type = eventTypeSelect.value; // Тип події ("plans" або "holidays")
 
-        if (description) {
-            if (isEdit) {
-                // Оновлюємо існуючу подію
-                events.plans[date][time] = [description];
+        if (title) {
+            if (!events.plans[date]) events.plans[date] = {};
+            if (!events.plans[date][time]) events.plans[date][time] = [];
+            
+            // Якщо подія вже існує, замінюємо її, інакше додаємо нову
+            if (existingEvent) {
+                existingEvent.title = title;
+                existingEvent.description = description;
             } else {
-                // Додаємо нову подію
-                addEvent(date, time, description, type);
+                events.plans[date][time].push({ title, description });
             }
-        }
-        closeEventModal();
-    };
 
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && modal.style.display === 'block') {
+            // Оновлюємо розклад після збереження
+            const startDate = new Date(selectedDate);
+            startDate.setDate(startDate.getDate() - startDate.getDay() + 1); // Початок тижня
+            createWeekSchedule(startDate);
+
             closeEventModal();
         }
-    });
+    };
 
     cancelEventButton.onclick = closeEventModal;
 }
+
 
 // Закриття модального вікна
 function closeEventModal() {
@@ -225,7 +308,16 @@ function closeEventModal() {
 
 // Додавання події через клітинку
 function addEventByClick(cell) {
-    openEventModal(cell);
+    const { date, time } = cell.dataset;
+
+    if (events.plans[date] && events.plans[date][time]) {
+        // Якщо є подія, відкриваємо модальне вікно для редагування першої події
+        const existingEvent = events.plans[date][time][0]; // Припускаємо одну подію в клітинці
+        openEventModal(cell, existingEvent);
+    } else {
+        // Якщо події немає, відкриваємо модальне вікно для додавання
+        openEventModal(cell);
+    }
 }
 
 // === КОНТЕКСТНЕ МЕНЮ ===
@@ -234,11 +326,19 @@ function openContextMenu(event, cell) {
     event.preventDefault(); // Забороняємо стандартне контекстне меню
     selectedEventCell = cell; // Зберігаємо обрану клітинку
 
+    const { date, time } = cell.dataset;
+
+    // Перевіряємо, чи є події в цій клітинці
+    const hasEvent = events.plans[date] && events.plans[date][time] && events.plans[date][time].length > 0;
+
+    // Відображаємо відповідні кнопки в контекстному меню
+    document.getElementById('editEvent').style.display = hasEvent ? 'block' : 'none';
+    document.getElementById('deleteEvent').style.display = hasEvent ? 'block' : 'none';
+
     contextMenu.style.display = 'block';
     contextMenu.style.left = `${event.pageX}px`;
     contextMenu.style.top = `${event.pageY}px`;
 }
-
 
 function closeContextMenu() {
     contextMenu.style.display = 'none';
@@ -306,12 +406,10 @@ function addEvent(date, time, description, type = 'plans') {
         events.holidays[date].push(description);
     }
 
-    // Оновити місячний календар або розклад дня
-    if (selectedDate === date) {
-        createDaySchedule(date); // Оновити розклад дня, якщо активний
-    }
-    
-    createMonthCalendar(); // Оновити місячний календар
+    // Оновлення розкладу для тижня
+    const startDate = new Date(selectedDate);
+    startDate.setDate(startDate.getDate() - startDate.getDay() + 1); // Початок тижня (понеділок)
+    createWeekSchedule(startDate);
 }
 
 // Редагування події
@@ -326,14 +424,20 @@ document.getElementById('editEvent').addEventListener('click', () => {
 document.getElementById('deleteEvent').addEventListener('click', () => {
     if (selectedEventCell) {
         const { date, time } = selectedEventCell.dataset;
-        delete events.plans[date][time]; // Видаляємо подію
-        if (Object.keys(events.plans[date]).length === 0) delete events.plans[date]; // Видаляємо дату, якщо порожня
-        createMonthCalendar(); // Оновлюємо місячний календар
-        if (selectedDate === date) createDaySchedule(date); // Оновлюємо розклад дня
+
+        if (events.plans[date] && events.plans[date][time]) {
+            delete events.plans[date][time]; // Видаляємо подію
+            if (Object.keys(events.plans[date]).length === 0) delete events.plans[date]; // Видаляємо дату, якщо порожня
+        }
+
+        // Оновлюємо розклад
+        const startDate = new Date(selectedDate);
+        startDate.setDate(startDate.getDate() - startDate.getDay() + 1); // Початок тижня
+        createWeekSchedule(startDate);
+
         closeContextMenu();
     }
 });
-
 
 // Виділення поточної події
 function highlightCurrentTime() {
@@ -373,6 +477,134 @@ function loadTimezones() {
     });
 }
 
+function handleDragStart(e, cell) {
+    const { date, time } = cell.dataset;
+
+    if (events.plans[date] && events.plans[date][time]) {
+        draggedEvent = {
+            date,
+            time,
+            event: events.plans[date][time][0], // Припускаємо одну подію
+        };
+        e.dataTransfer.setData('text/plain', JSON.stringify(draggedEvent));
+    }
+}
+
+// Дозволяємо перетягування
+function handleDragOver(e) {
+    e.preventDefault();
+}
+
+// Кінцевий пункт перетягування
+function handleDrop(e, cell) {
+    e.preventDefault();
+    const { date, time } = cell.dataset;
+
+    if (draggedEvent) {
+        if (events.plans[date] && events.plans[date][time]) {
+            // Якщо клітинка зайнята, відкриваємо модальне вікно з варіантами
+            openConflictModal(cell, draggedEvent);
+        } else {
+            // Якщо клітинка пуста, переносимо подію
+            transferEvent(draggedEvent, date, time);
+        }
+        draggedEvent = null; // Скидаємо дані про перетягування
+    }
+}
+
+
+function openConflictModal(targetCell, draggedEvent) {
+    const conflictModal = document.getElementById('conflictModal'); // Модальне вікно конфліктів
+    conflictModal.style.display = 'block';
+
+    // Отримуємо дані про цільову комірку
+    const { date: targetDate, time: targetTime } = targetCell.dataset;
+
+    // Перевіряємо подію в цільовій комірці
+    const existingEvent = events.plans[targetDate] && events.plans[targetDate][targetTime] 
+        ? { 
+            date: targetDate, 
+            time: targetTime, 
+            event: events.plans[targetDate][targetTime][0] // Передбачається одна подія
+          } 
+        : null;
+
+    // Обробка кнопок у модальному вікні
+    document.getElementById('replaceEvent').onclick = () => {
+        // Заміна події
+        if (existingEvent) {
+            delete events.plans[existingEvent.date][existingEvent.time]; // Видаляємо стару подію
+        }
+        transferEvent(draggedEvent, targetDate, targetTime); // Переносимо нову подію
+        closeConflictModal();
+    };
+
+    document.getElementById('cancelMove').onclick = () => {
+        // Скасування переносу
+        closeConflictModal();
+    };
+
+    document.getElementById('swapEvents').onclick = () => {
+        if (existingEvent) {
+            // Поміняти події місцями
+            transferEvent(existingEvent, draggedEvent.date, draggedEvent.time); // Стару подію переміщаємо у стару комірку
+            transferEvent(draggedEvent, targetDate, targetTime); // Перетягнуту подію переміщаємо у нову комірку
+        }
+        closeConflictModal();
+    };
+}
+
+
+function transferEvent(event, newDate, newTime) {
+    // Перевіряємо, чи подія існує
+    if (!event || !event.event) {
+        console.error("Подія не знайдена для переносу:", event);
+        return;
+    }
+
+    // Видаляємо подію зі старого місця
+    if (events.plans[event.date] && events.plans[event.date][event.time]) {
+        delete events.plans[event.date][event.time];
+        if (Object.keys(events.plans[event.date]).length === 0) {
+            delete events.plans[event.date]; // Видаляємо порожню дату
+        }
+    }
+
+    // Додаємо подію на нове місце
+    if (!events.plans[newDate]) events.plans[newDate] = {};
+    if (!events.plans[newDate][newTime]) events.plans[newDate][newTime] = [];
+    events.plans[newDate][newTime].push(event.event);
+
+    // Оновлюємо розклад
+    const startDate = new Date(selectedDate);
+    startDate.setDate(startDate.getDate() - startDate.getDay() + 1); // Початок тижня
+    createWeekSchedule(startDate);
+}
+
+
+function closeConflictModal() {
+    const conflictModal = document.getElementById('conflictModal');
+    conflictModal.style.display = 'none';
+}
+
+function transferEvent(event, newDate, newTime) {
+    // Видаляємо подію зі старого місця
+    delete events.plans[event.date][event.time];
+    if (Object.keys(events.plans[event.date]).length === 0) {
+        delete events.plans[event.date];
+    }
+
+    // Додаємо подію на нове місце
+    if (!events.plans[newDate]) events.plans[newDate] = {};
+    if (!events.plans[newDate][newTime]) events.plans[newDate][newTime] = [];
+    events.plans[newDate][newTime].push(event.event);
+
+    // Оновлюємо розклад
+    const startDate = new Date(selectedDate);
+    startDate.setDate(startDate.getDate() - startDate.getDay() + 1); // Початок тижня
+    createWeekSchedule(startDate);
+}
+
 
 
 // === ІНІЦІАЛІЗАЦІЯ ===
@@ -382,3 +614,15 @@ nextMonthButton.addEventListener('click', nextMonth);
 loadTimezones();
 createMonthCalendar();
 scrollToCurrentTime();
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && modal.style.display === 'block') {
+        closeEventModal();
+    }
+});
+
+document.addEventListener('click', (e) => {
+    if (modal.style.display === 'block' && !modal.contains(e.target)) {
+        closeEventModal();
+    }
+});

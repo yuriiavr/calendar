@@ -127,17 +127,32 @@ h1 {
 }
 
 #daySchedule td {
-    height: 50px;
-    vertical-align: middle;
-    cursor: pointer;
+    border: 1px solid #ccc;
+    text-align: center;
+    vertical-align: top;
 }
 
-#daySchedule td.current {
+#daySchedule td.current-time {
     background-color: yellow;
 }
 
 #daySchedule td:hover {
     background-color: #f1f1f1;
+}
+
+#daySchedule th.today {
+    background-color: green;
+    color: white;
+}
+
+#daySchedule .time-label {
+    font-weight: bold;
+    background-color: #f9f9f9;
+}
+
+#eventModal textarea {
+    resize: none;
+    height: 100px;
 }
 
 /* Денний режим */
