@@ -1,24 +1,11 @@
 {
   "name": "calendar-app",
   "version": "1.0.0",
-  "description": "Календар на Electron для запису розпорядку дня, свят та подій",
   "main": "main.js",
   "scripts": {
-    "start": "electron .",
-    "package": "electron-packager . CalendarApp --platform=win32 --arch=x64"
-  },
-  "keywords": [
-    "electron",
-    "calendar",
-    "event"
-  ],
-  "author": "Ваше ім'я",
-  "license": "MIT",
-  "devDependencies": {
-    "electron": "^26.2.0"
+    "start": "electron ."
   },
   "dependencies": {
-    "date-fns": "^2.30.0",
-    "flatpickr": "^4.6.13"
+    "electron": "^25.3.0"
   }
 }

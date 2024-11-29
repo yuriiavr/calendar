@@ -1,128 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Календар-Записник</title>
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <header>
-      <h1>Календар-Записник</h1>
-      <div class="month-navigation">
-        <button id="prevMonth">← Попередній місяць</button>
-        <span id="currentMonth"></span>
-        <button id="nextMonth">Наступний місяць →</button>
-      </div>
-      <div>
-        <label for="timezoneSelector">Виберіть часовий пояс:</label>
-        <select id="timezoneSelector"></select>
-      </div>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Календар</title>
+    <link rel="stylesheet" href="styles/style.css">
+</head>
+<body>
+    <!-- Заголовок місячного календаря -->
+    <header id="calendarHeader">
+        <h1>Календар</h1>
+        <div id="controls">
+            <button id="prevMonth">← Попередній місяць</button>
+            <span id="currentMonth"></span>
+            <button id="nextMonth">Наступний місяць →</button>
+        </div>
+    </header>
+
+    <!-- Заголовок тижневого календаря -->
+    <header id="weekHeader" class="hidden">
+        <button id="backToMonth">← Назад</button>
+        <h1 id="weekHeaderTitle"></h1>
     </header>
 
     <!-- Місячний календар -->
-    <main id="monthView">
-      <table id="monthCalendar">
-        <thead>
-          <tr>
-            <th>Пн</th>
-            <th>Вт</th>
-            <th>Ср</th>
-            <th>Чт</th>
-            <th>Пт</th>
-            <th>Сб</th>
-            <th>Нд</th>
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Дні місяця будуть динамічно додані -->
-        </tbody>
-      </table>
-    </main>
+    <div id="monthView">
+        <div id="monthContainer" class="calendar-grid"></div>
+    </div>
 
-    <!-- Розклад тижня -->
-    <main id="dayView" style="display: none">
-      <div class="controls">
-        <button id="backToMonth">← Назад до місяця</button>
-        <h2 id="selectedDate"></h2>
-        <div>
-          <label for="dayModeToggle">Денний режим</label>
-          <input type="checkbox" id="dayModeToggle" />
-        </div>
+    <!-- Тижневий календар -->
+    <div id="weekView" class="hidden">
+        <!-- Ліва колонка з часом -->
+        <div id="timeColumn" class="time-column"></div>
+
+        <!-- Заголовки днів тижня -->
+        <div id="weekDays" class="week-days"></div>
+
+        <!-- Сітка з часовими слотами -->
+        <div id="weekSchedule" class="week-schedule"></div>
+    </div>
+
+    <!-- Модальне вікно для створення/редагування події -->
+    <div id="eventModal" class="hidden">
+      <div class="modal-content">
+          <h3>Подія</h3>
+          <label for="eventTitle">Назва події:</label>
+          <input type="text" id="eventTitle">
+          <label for="eventDescription">Опис:</label>
+          <textarea id="eventDescription"></textarea>
+          <label for="eventDuration">Тривалість (у годинах):</label>
+          <input type="number" id="eventDuration" min="0.5" step="0.5">
+          <div class="modal-actions">
+              <button id="saveEvent">Зберегти</button>
+              <button id="cancelEvent">Скасувати</button>
+          </div>
       </div>
-      <table id="daySchedule">
-        <thead>
-          <tr>
-            <th class="time-label">Час</th>
-            <!-- Динамічно додані стовпці для кожного дня тижня -->
-          </tr>
-        </thead>
-        <tbody>
-          <!-- Часові інтервали будуть динамічно додані -->
-        </tbody>
-      </table>
-    </main>
-
-    <!-- Модальне вікно для введення події -->
-    <div
-      id="eventModal"
-      style="
-        display: none;
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        background: white;
-        padding: 20px;
-        border: 1px solid #ccc;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        z-index: 1000;
-      "
-    >
-      <h3>Подія</h3>
-      <label for="eventTitle">Назва:</label>
-      <input
-        type="text"
-        id="eventTitle"
-        style="width: 100%; margin-bottom: 10px"
-      />
-      <label for="eventDescription">Опис:</label>
-      <textarea
-        id="eventDescription"
-        style="width: 100%; margin-bottom: 10px"
-      ></textarea>
-      <button id="saveEvent">Зберегти</button>
-      <button id="cancelEvent">Скасувати</button>
-    </div>
-
-    <div
-    id="conflictModal"
-    style="
-      display: none;
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      background: white;
-      padding: 20px;
-      border: 1px solid #ccc;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-      z-index: 1000;
-    "
-  >
-    <h3>Цей час вже зайнятий</h3>
-    <p>Виберіть дію:</p>
-    <button id="replaceEvent">Замінити</button>
-    <button id="swapEvents">Поміняти події місцями</button>
-    <button id="cancelMove">Відмінити</button>
   </div>
+  
 
-    <!-- Контекстне меню -->
-    <div id="contextMenu" style="display: none">
-      <button id="editEvent">Редагувати</button>
-      <button id="deleteEvent">Видалити</button>
-    </div>
-
-    <script src="renderer.js" defer></script>
-  </body>
+    <!-- Скрипт -->
+    <script type="module" src="renderer.js"></script>
+</body>
 </html>
